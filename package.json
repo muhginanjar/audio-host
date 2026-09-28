@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Audio Hosting & Delivery Platform — upload, store, manage, and distribute audio via Web GUI + REST API",
   "engines": {
-    "node": ">=20.19"
+    "node": ">=20.11"
   },
   "scripts": {
     "dev": "concurrently -k -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",

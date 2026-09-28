@@ -30,8 +30,8 @@ Open http://localhost:5173 (or :3000 once built). `npm run build` produces `dist
 
 ## 2. VPS deployment (pm2) — recommended path
 
-1. **Install dependencies** — Node ≥ 20.19 (tested on 22/24; 20.17 ke bawah gagal `npm i` karena TanStack/Vite butuh ≥20.19), git, nginx/Caddy:
-   `curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs nginx && node -v`
+1. **Install dependencies** — Node ≥ 20.11, git, nginx/Caddy:
+   `curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs nginx`
 2. **Get the code**: `git clone <repo> /opt/audio-host && cd /opt/audio-host`
 3. **Setup database**: SQLite needs no server — `DB_SQLITE_PATH` points at `data/audio.sqlite` (auto-created, auto-migrated on boot; `npm run migrate` available for CI).
 4. **Setup storage**: `STORAGE_ROOT=storage` — keep it **outside** any web root; the app streams it itself.

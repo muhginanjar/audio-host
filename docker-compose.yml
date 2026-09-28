@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    container_name: audio-host
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOST: 0.0.0.0
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data # sqlite db (+ pm2 logs if mounted host-side)
+      - ./storage:/app/storage # uploaded audio bytes — outside web root
+  # Native pm2 deployment is the primary path; compose is the convenience
+  # alternative. Migrations run automatically at startup — no separate job.

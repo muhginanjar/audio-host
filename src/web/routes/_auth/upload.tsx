@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { ApiClientError, uploadAudio } from "../../lib/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ApiClientError, api, uploadAudio } from "../../lib/api";
 import type { AudioDTO } from "@shared/types";
 import { useMe } from "../../lib/auth";
 import { formatBytes } from "../../lib/format";
@@ -58,18 +58,18 @@ function UploadPage() {
   const toast = useToast();
   const qc = useQueryClient();
   const me = useMe();
+  const foldersQuery = useQuery({ queryKey: ["folders", "mine"], queryFn: () => api.folders({ per_page: 100 }).then((r) => r.data) });
 
   const [queue, setQueueState] = useState<QueueItem[]>([]);
   const queueRef = useRef<QueueItem[]>([]);
   const chainRef = useRef<Promise<void>>(Promise.resolve());
-  const fieldsRef = useRef({ title: "", description: "", visibility: "public" });
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const fieldsRef = useRef({ title: "", description: "", visibility: "public", folderId: "" });
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState("public");
+  const [folderId, setFolderId] = useState("");
   const [dragOver, setDragOver] = useState(false);
-
   const setQueue = (fn: (q: QueueItem[]) => QueueItem[]) => {
     queueRef.current = fn(queueRef.current);
     setQueueState(queueRef.current);
@@ -89,6 +89,7 @@ function UploadPage() {
       form.append("description", fieldsRef.current.description.trim());
     }
     form.append("visibility", fieldsRef.current.visibility);
+    if (fieldsRef.current.folderId) form.append("folder_id", fieldsRef.current.folderId);
 
     return uploadAudio(form, (percent) => patchItem(item.id, { percent }))
       .then((audio) => {
@@ -253,6 +254,22 @@ function UploadPage() {
               >
                 <option value="public">Public — anyone with the URL can listen</option>
                 <option value="private">Private — only streamed through the authenticated API</option>
+              </Select>
+            </Field>
+            <Field label="Folder" hint="Optional — files land in this folder. Create folders from the Audio page.">
+              <Select
+                value={folderId}
+                onChange={(e) => {
+                  setFolderId(e.target.value);
+                  fieldsRef.current.folderId = e.target.value;
+                }}
+              >
+                <option value="">No folder (root)</option>
+                {(foldersQuery.data ?? []).map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
               </Select>
             </Field>
           </div>

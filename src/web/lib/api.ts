@@ -6,8 +6,10 @@ import type {
   AudioStatsDTO,
   DashboardStats,
   MeDTO,
-  PaginationMeta,
+  FolderDTO,
+  FolderDetailDTO,
   UserAdminDTO,
+  PaginationMeta,
 } from "@shared/types";
 
 export class ApiClientError extends Error {
@@ -64,6 +66,7 @@ export interface AudioListParams {
   order?: "asc" | "desc";
   date_from?: string;
   date_to?: string;
+  folder_id?: string;
   user_id?: number;
 }
 
@@ -82,11 +85,24 @@ export const api = {
   audioList: (p: AudioListParams = {}) => get<AudioDTO[]>(`/api/client/audio${qs(p)}`),
   feedList: (p: AudioListParams = {}) => get<AudioDTO[]>(`/api/public/feed${qs(p)}`),
   feedStats: () => get<{ total_tracks: number; total_plays: number; total_size_bytes: number; contributors: number; tracks_today: number }>("/api/public/feed/stats"),
+  publicFolders: (p: { search?: string; page?: number; per_page?: number } = {}) =>
+    get<FolderDTO[]>(`/api/public/folders${qs(p)}`),
+  publicFolder: (id: string) => get<FolderDetailDTO>(`/api/public/folders/${id}`),
   audioGet: (id: string) => get<AudioWithStats>(`/api/client/audio/${id}`),
-  audioPatch: (id: string, body: { title?: string; description?: string; visibility?: string }) =>
+  audioPatch: (id: string, body: { title?: string; description?: string; visibility?: string; folder_id?: string | null }) =>
     patch<AudioDTO>(`/api/client/audio/${id}`, body),
   audioDelete: (id: string) => del<{ deleted: boolean; id: string }>(`/api/client/audio/${id}`),
 
+  folders: (p: { search?: string; visibility?: string; show_on_homepage?: boolean; page?: number; per_page?: number } = {}) =>
+    get<FolderDTO[]>(`/api/client/folders${qs(p)}`),
+  folderCreate: (body: { name: string; visibility?: string; show_on_homepage?: boolean }) =>
+    post<FolderDTO>("/api/client/folders", body),
+  folderGet: (id: string, p: { page?: number; per_page?: number } = {}) =>
+    get<FolderDetailDTO>(`/api/client/folders/${id}${qs(p)}`),
+  folderPatch: (id: string, body: { name?: string; visibility?: string; show_on_homepage?: boolean }) =>
+    patch<FolderDTO>(`/api/client/folders/${id}`, body),
+  folderDelete: (id: string, deleteContents = false) =>
+    del<{ deleted: boolean; tracksDeleted: number; id: string }>(`/api/client/folders/${id}${deleteContents ? "?delete_contents=true" : ""}`),
   admin: {
     overview: () => get<{ overview: AdminOverview; recent_audio: AudioDTO[] }>("/api/client/admin/overview"),
     users: (p: { search?: string; page?: number; per_page?: number } = {}) =>

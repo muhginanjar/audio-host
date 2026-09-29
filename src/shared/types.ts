@@ -47,6 +47,27 @@ export interface AudioDTO {
   created_at: string;
   updated_at: string;
   owner?: { id: number; name: string; email?: string }; // admin listings include email; public feed: id + name only
+  folder?: { id: string; name: string } | null;
+}
+
+export interface FolderDTO {
+  id: string;
+  name: string;
+  visibility: Visibility;
+  show_on_homepage: boolean;
+  track_count: number;
+  public_track_count: number;
+  total_duration: number;
+  total_plays: number;
+  owner?: { id: number; name: string };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FolderDetailDTO {
+  folder: FolderDTO;
+  tracks: AudioDTO[];
+  meta: PaginationMeta;
 }
 
 export interface StorageUsage {

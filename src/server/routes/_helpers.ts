@@ -59,11 +59,13 @@ export async function uploadAudioFromForm(
     title: strOrUndef(form.get("title")),
     description: strOrUndef(form.get("description")),
     visibility: strOrUndef(form.get("visibility")),
+    folder_id: strOrUndef(form.get("folder_id")),
   });
 
   return uploadAudio(user, {
     buffer: Buffer.from(await file.arrayBuffer()),
     originalFilename: file.name,
     ...fields,
+    folderId: fields.folder_id ?? undefined,
   });
 }

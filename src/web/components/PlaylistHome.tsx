@@ -4,7 +4,7 @@ import { api } from "../lib/api";
 import { formatBytes, formatDuration, timeAgo } from "../lib/format";
 import { Button, EmptyState, Input, Pagination, Select, Spinner, cn, useToast } from "./ui";
 import { Icon } from "./icons";
-import type { AudioDTO } from "@shared/types";
+import type { AudioDTO, FolderDTO } from "@shared/types";
 
 const FEED_LIMIT = 30;
 
@@ -43,6 +43,8 @@ export function PlaylistHome() {
   const tracks: FeedTrack[] = (feed.data?.data ?? []).map((a) => ({ ...a, ownerName: a.owner?.name ?? "Unknown" }));
   const meta = feed.data?.meta;
   const st = feedStats.data;
+  const foldersQuery = useQuery({ queryKey: ["public-folders", "home"], queryFn: () => api.publicFolders({ per_page: 12 }).then((r) => r.data) });
+  const [openFolderId, setOpenFolderId] = useState<string | null>(null);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -70,6 +72,8 @@ export function PlaylistHome() {
           </Select>
         </div>
       </div>
+
+      <FolderShelf folders={foldersQuery.data ?? []} loading={foldersQuery.isPending} openFolderId={openFolderId} onOpen={setOpenFolderId} />
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className={cn("hidden items-center gap-3 border-b border-slate-100 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid sm:px-5", ROW_GRID)}>
@@ -195,6 +199,86 @@ function advance(tracks: FeedTrack[], current: string | null, set: (id: string |
   const idx = tracks.findIndex((t) => t.id === current);
   const next = idx < 0 ? tracks[0] : tracks[(idx + dir + tracks.length) % tracks.length];
   set(next.id);
+}
+
+function FolderShelf({
+  folders,
+  loading,
+  openFolderId,
+  onOpen,
+}: {
+  folders: FolderDTO[];
+  loading: boolean;
+  openFolderId: string | null;
+  onOpen: (id: string | null) => void;
+}) {
+  const detail = useQuery({
+    queryKey: ["public-folder", openFolderId],
+    queryFn: () => api.publicFolder(openFolderId as string).then((r) => r.data),
+    enabled: !!openFolderId,
+  });
+  if (loading) return null;
+  if (folders.length === 0) return null;
+  return (
+    <section className="mb-6">
+      <div className="mb-3 flex items-baseline justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500">Collections</h2>
+        <p className="text-xs text-slate-400">Curated folders marked for the homepage</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {folders.map((f) => {
+          const open = openFolderId === f.id;
+          return (
+            <div key={f.id} className={cn("overflow-hidden rounded-2xl border bg-white shadow-sm", open ? "border-indigo-300" : "border-slate-200")}>
+              <button
+                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
+                onClick={() => onOpen(open ? null : f.id)}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                  <Icon name="music" className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-slate-900">{f.name}</span>
+                  <span className="block truncate text-xs text-slate-400">
+                    {f.owner ? `by ${f.owner.name} · ` : ""}{f.public_track_count} tracks
+                  </span>
+                </span>
+                <Icon name={open ? "x" : "play"} className="h-4 w-4 shrink-0 text-slate-400" />
+              </button>
+              {open && (
+                <div className="border-t border-slate-100 px-4 py-2">
+                  {detail.isPending ? (
+                    <div className="flex items-center justify-center py-6 text-indigo-500">
+                      <Spinner className="h-5 w-5" />
+                    </div>
+                  ) : detail.isError || !detail.data ? (
+                    <p className="py-3 text-center text-xs text-slate-500">Could not load this collection.</p>
+                  ) : detail.data.tracks.length === 0 ? (
+                    <p className="py-3 text-center text-xs text-slate-500">No public tracks in this folder.</p>
+                  ) : (
+                    <ol>
+                      {detail.data.tracks.map((t, i) => (
+                        <li key={t.id} className="flex items-center gap-2 border-b border-slate-50 py-2 text-sm last:border-0">
+                          <span className="w-5 shrink-0 text-right text-xs tabular-nums text-slate-400">{i + 1}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium text-slate-900">{t.title || t.filename}</span>
+                            <span className="block text-xs tabular-nums text-slate-400">{formatDuration(t.duration)} · {t.play_count} plays</span>
+                          </span>
+                          <audio controls preload="none" className="h-8 w-36 shrink-0">
+                            <source src={t.url} type={t.mime_type} />
+                          </audio>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 function StickyPlayer({

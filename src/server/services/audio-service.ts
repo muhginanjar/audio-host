@@ -1,7 +1,7 @@
-import { and, asc, desc, eq, gte, like, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, like, lte, or, sql } from "drizzle-orm";
 import { ulid } from "ulid";
 import { getDb } from "../db";
-import { audioAccessLogs, audioFiles, users } from "../db/schema";
+import { audioAccessLogs, audioFiles, folders, users } from "../db/schema";
 import type { AudioFileRow, UserRow } from "../db/schema";
 import { env } from "../env";
 import { isoNow, utcDayBounds } from "../lib/dates";
@@ -25,6 +25,19 @@ export interface UploadInput {
   title?: string;
   description?: string;
   visibility?: Visibility;
+  folderId?: string | null;
+}
+
+/** Owner-scoped folder resolution shared by upload + PATCH (foreign ids → 404). */
+export function resolveFolderRef(folderId: string | null | undefined, userId: number): string | null {
+  if (!folderId) return null;
+  const row = getDb()
+    .select({ id: folders.id })
+    .from(folders)
+    .where(and(eq(folders.id, folderId.toUpperCase()), eq(folders.userId, userId)))
+    .get();
+  if (!row) throw notFound(`Folder "${folderId}" was not found in this account.`);
+  return row.id;
 }
 
 /**
@@ -58,6 +71,7 @@ export async function uploadAudio(user: UserRow, input: UploadInput): Promise<Au
 
   const id = ulid();
   const createdAt = isoNow();
+  const folderId = resolveFolderRef(input.folderId, user.id);
   const key = storageKeyFor(id, sniff.extension, createdAt);
   const storage = getStorage();
   await storage.put(key, input.buffer);
@@ -76,6 +90,7 @@ export async function uploadAudio(user: UserRow, input: UploadInput): Promise<Au
     .values({
       id,
       userId: user.id,
+      folderId,
       originalFilename: baseName,
       storedFilename: `${id}.${sniff.extension}`,
       title: (input.title?.trim() || meta.titleTag || baseName).slice(0, 300),
@@ -119,6 +134,13 @@ export function sanitizeOriginalFilename(name: string): string {
 
 export function getAudioById(id: string): AudioFileRow | null {
   return getDb().select().from(audioFiles).where(eq(audioFiles.id, id)).get() ?? null;
+}
+
+/** Folder chip for single-record views (detail/upload response). Null when unfiled. */
+export function folderChipFor(row: AudioFileRow): { id: string; name: string } | null {
+  if (!row.folderId) return null;
+  const f = getDb().select({ id: folders.id, name: folders.name }).from(folders).where(eq(folders.id, row.folderId)).get();
+  return f ? { id: f.id, name: f.name } : null;
 }
 
 /** Owner-scoped fetch: cross-tenant ids look identical to missing ones (404). */
@@ -166,6 +188,11 @@ export function listAudios(
   if (filters.max_size !== undefined) conditions.push(lte(audioFiles.size, filters.max_size));
   if (filters.min_duration !== undefined) conditions.push(gte(audioFiles.duration, filters.min_duration));
   if (filters.max_duration !== undefined) conditions.push(lte(audioFiles.duration, filters.max_duration));
+  if (filters.folder_id === "unfiled") {
+    conditions.push(isNull(audioFiles.folderId));
+  } else if (filters.folder_id) {
+    conditions.push(eq(audioFiles.folderId, filters.folder_id.toUpperCase()));
+  }
 
   const where = conditions.length ? and(...conditions) : undefined;
   const sortCol = {
@@ -189,9 +216,14 @@ export function listAudios(
         };
 
   const rows = db
-    .select(selectShape)
+    .select({
+      ...selectShape,
+      folderId: folders.id,
+      folderName: folders.name,
+    })
     .from(audioFiles)
     .leftJoin(users, eq(audioFiles.userId, users.id))
+    .leftJoin(folders, eq(audioFiles.folderId, folders.id))
     .where(where)
     .orderBy(dir(sortCol), dir(audioFiles.id))
     .limit(filters.perPage)
@@ -207,6 +239,7 @@ export function listAudios(
         r.ownerId !== null && r.ownerName
           ? { id: r.ownerId, name: r.ownerName, email: r.ownerEmail! }
           : undefined,
+        r.folderId && r.folderName ? { id: r.folderId, name: r.folderName } : null,
       ),
     ),
     meta: {
@@ -218,7 +251,11 @@ export function listAudios(
   };
 }
 
-export function toAudioDTO(row: AudioFileRow, owner?: { id: number; name: string; email: string }): AudioDTO {
+export function toAudioDTO(
+  row: AudioFileRow,
+  owner?: { id: number; name: string; email: string },
+  folder?: { id: string; name: string } | null,
+): AudioDTO {
   return {
     id: row.id,
     filename: row.originalFilename,
@@ -244,6 +281,7 @@ export function toAudioDTO(row: AudioFileRow, owner?: { id: number; name: string
     created_at: row.createdAt,
     updated_at: row.updatedAt,
     ...(owner ? { owner } : {}),
+    ...(folder !== undefined ? { folder } : {}),
   };
 }
 
@@ -251,6 +289,7 @@ export interface AudioPatch {
   title?: string;
   description?: string;
   visibility?: Visibility;
+  folderId?: string | null;
 }
 
 export function updateAudio(id: string, userId: number, patch: AudioPatch): AudioFileRow {
@@ -259,6 +298,7 @@ export function updateAudio(id: string, userId: number, patch: AudioPatch): Audi
   if (patch.title !== undefined) set.title = patch.title.slice(0, 300);
   if (patch.description !== undefined) set.description = patch.description.slice(0, 5000);
   if (patch.visibility !== undefined) set.visibility = patch.visibility;
+  if (patch.folderId !== undefined) set.folderId = resolveFolderRef(patch.folderId, userId);
   return getDb().update(audioFiles).set(set).where(eq(audioFiles.id, id)).returning().get();
 }
 

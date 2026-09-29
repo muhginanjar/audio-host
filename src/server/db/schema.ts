@@ -42,6 +42,7 @@ export const audioFiles = sqliteTable(
   (t) => ({
     id: t.text().primaryKey(),
     userId: t.integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    folderId: t.text("folder_id").references(() => folders.id, { onDelete: "set null" }),
     originalFilename: t.text("original_filename").notNull(),
     storedFilename: t.text("stored_filename").notNull(),
     title: t.text().notNull().default(""),
@@ -70,7 +71,22 @@ export const audioFiles = sqliteTable(
     index("audio_files_user_created").on(t.userId, t.createdAt),
     index("audio_files_visibility").on(t.visibility),
     index("audio_files_status").on(t.status),
+    index("audio_files_folder").on(t.folderId),
   ],
+);
+
+export const folders = sqliteTable(
+  "folders",
+  (t) => ({
+    id: t.text().primaryKey(),
+    userId: t.integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    name: t.text().notNull(),
+    visibility: t.text().$type<"public" | "private">().notNull().default("private"),
+    showOnHomepage: t.integer("show_on_homepage").notNull().default(0),
+    createdAt: t.text("created_at").notNull(),
+    updatedAt: t.text("updated_at").notNull(),
+  }),
+  (t) => [index("folders_user").on(t.userId)],
 );
 
 export const apiLogs = sqliteTable(
@@ -111,6 +127,7 @@ export const systemSettings = sqliteTable("system_settings", (t) => ({
 }));
 
 export type UserRow = typeof users.$inferSelect;
+export type FolderRow = typeof folders.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;
 export type ApiTokenRow = typeof apiTokens.$inferSelect;
 export type AudioFileRow = typeof audioFiles.$inferSelect;

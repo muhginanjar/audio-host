@@ -115,4 +115,23 @@ CREATE TABLE system_settings (
 );
 `,
   },
+  {
+    id: "0002_folders",
+    sql: `
+CREATE TABLE folders (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  visibility TEXT NOT NULL DEFAULT 'private' CHECK (visibility IN ('public','private')),
+  show_on_homepage INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX folders_user_name_unique ON folders (user_id, lower(name));
+CREATE INDEX folders_user ON folders (user_id);
+CREATE INDEX folders_public_home ON folders (visibility, show_on_homepage);
+ALTER TABLE audio_files ADD COLUMN folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL;
+CREATE INDEX audio_files_folder ON audio_files (folder_id);
+`,
+  },
 ];

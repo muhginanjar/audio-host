@@ -6,6 +6,7 @@ import { normalizeId } from "../lib/http";
 import { parseOrThrow, listQuerySchema, patchAudioSchema, changePasswordSchema } from "../lib/validation";
 import {
   deleteAudio,
+  folderChipFor,
   getAudioStats,
   getOwnedAudio,
   listAudios,
@@ -45,7 +46,7 @@ clientUser.post("/profile/token/regenerate", (c) => {
 
 clientUser.post("/audio", async (c) => {
   const row = await uploadAudioFromForm(c.req, c.get("user"));
-  return c.json({ success: true, data: toAudioDTO(row) }, 201);
+  return c.json({ success: true, data: toAudioDTO(row, undefined, folderChipFor(row)) }, 201);
 });
 
 clientUser.get("/feed", (c) => {
@@ -64,7 +65,7 @@ clientUser.get("/audio", (c) => {
 
 clientUser.get("/audio/:id", (c) => {
   const audio = audioFromSession(c);
-  return c.json({ success: true, data: { ...toAudioDTO(audio), stats: getAudioStats(audio.id) } });
+  return c.json({ success: true, data: { ...toAudioDTO(audio, undefined, folderChipFor(audio)), stats: getAudioStats(audio.id) } });
 });
 
 clientUser.patch("/audio/:id", async (c) => {
@@ -73,7 +74,7 @@ clientUser.patch("/audio/:id", async (c) => {
     throw badRequest("Body must be valid JSON.");
   });
   const patch = parseOrThrow(patchAudioSchema, body);
-  return c.json({ success: true, data: toAudioDTO(updateAudio(audio.id, audio.userId, patch)) });
+  return c.json({ success: true, data: toAudioDTO(updateAudio(audio.id, audio.userId, toAudioPatchInput(patch)), undefined, folderChipFor(getOwnedAudio(audio.id, audio.userId))) });
 });
 
 clientUser.delete("/audio/:id", async (c) => {
@@ -86,4 +87,19 @@ function audioFromSession(c: Context<SessionEnv, string>): AudioFileRow {
   const id = normalizeId(c.req.param("id"));
   if (!id) throw notFound("Audio not found.");
   return getOwnedAudio(id, c.get("user").id);
+}
+
+/** Maps snake_case PATCH body to the service patch (null clears the folder). */
+export function toAudioPatchInput(patch: { title?: string; description?: string; visibility?: "public" | "private"; folder_id?: string | null }): {
+  title?: string;
+  description?: string;
+  visibility?: "public" | "private";
+  folderId?: string | null;
+} {
+  return {
+    ...(patch.title !== undefined ? { title: patch.title } : {}),
+    ...(patch.description !== undefined ? { description: patch.description } : {}),
+    ...(patch.visibility !== undefined ? { visibility: patch.visibility } : {}),
+    ...(patch.folder_id !== undefined ? { folderId: patch.folder_id } : {}),
+  };
 }

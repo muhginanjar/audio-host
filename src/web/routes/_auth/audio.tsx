@@ -65,18 +65,22 @@ function DetailModal({ id, onClose }: { id: string; onClose: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState("public");
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const foldersQuery = useQuery({ queryKey: ["folders", "mine"], queryFn: () => api.folders({ per_page: 100 }).then((r) => r.data) });
 
   useEffect(() => {
     if (detail.data) {
       setTitle(detail.data.title);
       setDescription(detail.data.description);
       setVisibility(detail.data.visibility);
+      setFolderId(detail.data.folder?.id ?? null);
     }
   }, [detail.data]);
 
   const patch = useMutation({
-    mutationFn: (body: { title: string; description: string; visibility: string }) =>
+    mutationFn: (body: { title: string; description: string; visibility: string; folder_id: string | null }) =>
       api.audioPatch(id, body).then((r) => r.data),
+
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["audio"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
@@ -101,6 +105,7 @@ function DetailModal({ id, onClose }: { id: string; onClose: () => void }) {
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Metadata</p>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
               {[
+                { k: "Folder", v: a.folder ? a.folder.name : "—" },
                 { k: "MIME type", v: a.mime_type },
                 { k: "Container", v: a.format ?? "—" },
                 { k: "Codec", v: a.codec ?? "—" },
@@ -155,7 +160,17 @@ function DetailModal({ id, onClose }: { id: string; onClose: () => void }) {
                   <option value="private">Private</option>
                 </Select>
               </Field>
-              <Button variant="primary" size="sm" loading={patch.isPending} onClick={() => patch.mutate({ title, description, visibility })}>
+              <Field label="Folder">
+                <Select value={folderId ?? ""} onChange={(e) => setFolderId(e.target.value || null)}>
+                  <option value="">No folder (root)</option>
+                  {(foldersQuery.data ?? []).map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Button variant="primary" size="sm" loading={patch.isPending} onClick={() => patch.mutate({ title, description, visibility, folder_id: folderId })}>
                 Save changes
               </Button>
             </div>
@@ -210,10 +225,10 @@ function AudioPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [format, setFormat] = useState("");
+  const [folderId, setFolderId] = useState("");
   const [sort, setSort] = useState("created_at");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
-
   const [playing, setPlaying] = useState<AudioDTO | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AudioDTO | null>(null);
@@ -227,16 +242,18 @@ function AudioPage() {
   }, [search]);
 
   const list = useQuery({
-    queryKey: ["audio", { page, search: debouncedSearch, format, sort, order }],
+    queryKey: ["audio", { page, search: debouncedSearch, format, folderId, sort, order }],
     queryFn: () =>
       api.audioList({
         page,
         search: debouncedSearch || undefined,
         format: format || undefined,
+        folder_id: folderId || undefined,
         sort,
         order,
       }),
   });
+  const foldersQuery = useQuery({ queryKey: ["folders", "mine"], queryFn: () => api.folders({ per_page: 100 }).then((r) => r.data) });
 
   const remove = useMutation({
     mutationFn: (id: string) => api.audioDelete(id),
@@ -281,6 +298,15 @@ function AudioPage() {
               </option>
             ))}
           </Select>
+          <Select value={folderId} onChange={(e) => { setFolderId(e.target.value); setPage(1); }} className="w-44">
+            <option value="">All folders</option>
+            <option value="unfiled">No folder</option>
+            {(foldersQuery.data ?? []).map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </Select>
           <Select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} className="w-40">
             {SORTS.map((s) => (
               <option key={s.value} value={s.value}>
@@ -319,10 +345,11 @@ function AudioPage() {
                     <div className="min-w-0 max-w-[280px]">
                       <p className="truncate font-medium text-slate-900">{a.title || a.filename}</p>
                       <p className="truncate text-xs text-slate-400">{a.filename}</p>
-                      <div className="mt-1 flex gap-1.5">
+                      <div className="mt-1 flex flex-wrap gap-1.5">
                         <Badge tone={a.visibility === "private" ? "amber" : "slate"}>
                           {a.visibility === "private" ? "Private" : "Public"}
                         </Badge>
+                        {a.folder && <Badge tone="indigo">{a.folder.name}</Badge>}
                         {a.status !== "ready" && (
                           <Badge tone={STATUS_TONE[a.status] ?? "amber"}>{a.status}</Badge>
                         )}

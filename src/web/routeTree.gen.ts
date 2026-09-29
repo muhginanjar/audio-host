@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthAudioRouteImport } from './routes/_auth/audio'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
 import { Route as AuthDocsRouteImport } from './routes/_auth/docs'
+import { Route as AuthFoldersRouteImport } from './routes/_auth/folders'
 import { Route as AuthProfileRouteImport } from './routes/_auth/profile'
 import { Route as AuthUploadRouteImport } from './routes/_auth/upload'
 import { Route as AuthAdminIndexRouteImport } from './routes/_auth/admin/index'
@@ -52,6 +53,11 @@ const AuthDashboardRoute = AuthDashboardRouteImport.update({
 const AuthDocsRoute = AuthDocsRouteImport.update({
   id: '/docs',
   path: '/docs',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthFoldersRoute = AuthFoldersRouteImport.update({
+  id: '/folders',
+  path: '/folders',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthProfileRoute = AuthProfileRouteImport.update({
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/audio': typeof AuthAudioRoute
   '/dashboard': typeof AuthDashboardRoute
   '/docs': typeof AuthDocsRoute
+  '/folders': typeof AuthFoldersRoute
   '/profile': typeof AuthProfileRoute
   '/upload': typeof AuthUploadRoute
   '/admin/audio': typeof AuthAdminAudioRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/audio': typeof AuthAudioRoute
   '/dashboard': typeof AuthDashboardRoute
   '/docs': typeof AuthDocsRoute
+  '/folders': typeof AuthFoldersRoute
   '/profile': typeof AuthProfileRoute
   '/upload': typeof AuthUploadRoute
   '/admin/audio': typeof AuthAdminAudioRoute
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/_auth/audio': typeof AuthAudioRoute
   '/_auth/dashboard': typeof AuthDashboardRoute
   '/_auth/docs': typeof AuthDocsRoute
+  '/_auth/folders': typeof AuthFoldersRoute
   '/_auth/profile': typeof AuthProfileRoute
   '/_auth/upload': typeof AuthUploadRoute
   '/_auth/admin/audio': typeof AuthAdminAudioRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/audio'
     | '/dashboard'
     | '/docs'
+    | '/folders'
     | '/profile'
     | '/upload'
     | '/admin/audio'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/audio'
     | '/dashboard'
     | '/docs'
+    | '/folders'
     | '/profile'
     | '/upload'
     | '/admin/audio'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/_auth/audio'
     | '/_auth/dashboard'
     | '/_auth/docs'
+    | '/_auth/folders'
     | '/_auth/profile'
     | '/_auth/upload'
     | '/_auth/admin/audio'
@@ -250,6 +262,13 @@ declare module '@tanstack/react-router' {
       path: '/docs'
       fullPath: '/docs'
       preLoaderRoute: typeof AuthDocsRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/folders': {
+      id: '/_auth/folders'
+      path: '/folders'
+      fullPath: '/folders'
+      preLoaderRoute: typeof AuthFoldersRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/profile': {
@@ -322,6 +341,7 @@ interface AuthRouteChildren {
   AuthAudioRoute: typeof AuthAudioRoute
   AuthDashboardRoute: typeof AuthDashboardRoute
   AuthDocsRoute: typeof AuthDocsRoute
+  AuthFoldersRoute: typeof AuthFoldersRoute
   AuthProfileRoute: typeof AuthProfileRoute
   AuthUploadRoute: typeof AuthUploadRoute
   AuthAdminAudioRoute: typeof AuthAdminAudioRoute
@@ -337,6 +357,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthAudioRoute: AuthAudioRoute,
   AuthDashboardRoute: AuthDashboardRoute,
   AuthDocsRoute: AuthDocsRoute,
+  AuthFoldersRoute: AuthFoldersRoute,
   AuthProfileRoute: AuthProfileRoute,
   AuthUploadRoute: AuthUploadRoute,
   AuthAdminAudioRoute: AuthAdminAudioRoute,

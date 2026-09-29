@@ -21,6 +21,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
       { to: "/", label: "Home", icon: "dashboard" },
       { to: "/dashboard", label: "Dashboard", icon: "logs" },
       { to: "/audio", label: "Audio", icon: "music" },
+      { to: "/folders", label: "Folders", icon: "file" },
       { to: "/upload", label: "Upload", icon: "upload" },
       { to: "/docs", label: "API Documentation", icon: "code" },
       { to: "/profile", label: "Profile", icon: "user" },

@@ -51,6 +51,29 @@ export const listQuerySchema = z.object({
   max_size: z.coerce.number().int().min(0).optional(),
   min_duration: z.coerce.number().min(0).optional(),
   max_duration: z.coerce.number().min(0).optional(),
+  folder_id: z.string().trim().max(30).optional(),
+});
+
+export const createFolderSchema = z.object({
+  name: z.string().trim().min(1, "Folder name is required.").max(120),
+  visibility: z.enum(["public", "private"]).default("private"),
+  show_on_homepage: z.coerce.boolean().default(false),
+});
+
+export const patchFolderSchema = z
+  .object({
+    name: z.string().trim().min(1, "Folder name cannot be blank.").max(120).optional(),
+    visibility: z.enum(["public", "private"]).optional(),
+    show_on_homepage: z.coerce.boolean().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: "No fields to update were provided" });
+
+export const folderListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  per_page: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().trim().max(200).optional(),
+  visibility: z.enum(["public", "private"]).optional(),
+  show_on_homepage: z.coerce.boolean().optional(),
 });
 
 export const adminAudioQuerySchema = listQuerySchema.extend({
@@ -62,6 +85,7 @@ export const patchAudioSchema = z
     title: z.string().trim().min(1, "title cannot be blank").max(300).optional(),
     description: z.string().trim().max(5000).optional(),
     visibility: z.enum(["public", "private"]).optional(),
+    folder_id: z.string().trim().max(30).nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "No fields to update were provided" });
 
@@ -87,6 +111,7 @@ export const uploadFieldsSchema = z.object({
   title: z.string().trim().max(300).optional(),
   description: z.string().trim().max(5000).optional(),
   visibility: z.enum(["public", "private"]).default("public"),
+  folder_id: z.string().trim().max(30).optional(),
 });
 
 export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown): T {

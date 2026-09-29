@@ -9,9 +9,12 @@ import { clientAdmin } from "./routes/client-admin";
 import { media } from "./routes/media";
 import { embed } from "./routes/embed";
 import { publicApi } from "./routes/public";
+import { publicFolders } from "./routes/public-folders";
+import { clientFolders } from "./routes/client-folders";
 import { corsForApi } from "./middleware/cors";
 import { AppError, apiError } from "./lib/errors";
 import { env } from "./env";
+
 const APP_PREFIXES = ["/api", "/a/", "/embed/"];
 
 export function createApp() {
@@ -54,8 +57,10 @@ export function createApp() {
   client.route("/auth", clientAuth);
   client.route("/", clientUser);
   client.route("/admin", clientAdmin);
+  client.route("/folders", clientFolders);
   app.route("/api/client", client);
   app.route("/api/public", publicApi);
+  app.route("/api/public/folders", publicFolders);
   app.route("/a", media);
   app.route("/embed", embed);
 

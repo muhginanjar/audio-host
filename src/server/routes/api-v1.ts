@@ -9,6 +9,7 @@ import { parseOrThrow, listQuerySchema, patchAudioSchema } from "../lib/validati
 import {
   deleteAudio,
   getAudioStats,
+  folderChipFor,
   getOwnedAudio,
   listAudios,
   toAudioDTO,
@@ -17,8 +18,8 @@ import {
 } from "../services/audio-service";
 import { logApiRequest } from "../services/api-log-service";
 import { buildMeDTO, uploadAudioFromForm } from "./_helpers";
+import { toAudioPatchInput } from "./client-user";
 import type { AudioFileRow } from "../db/schema";
-
 export const apiV1 = new Hono<ApiEnv>();
 
 /** Every /api/v1 request is logged (success or failure) with timing. */
@@ -44,7 +45,7 @@ apiV1.get("/me", (c) => c.json({ success: true, data: buildMeDTO(c.get("apiUser"
 
 apiV1.post("/audio", rateLimit("upload"), async (c) => {
   const row = await uploadAudioFromForm(c.req, c.get("apiUser"));
-  return c.json({ success: true, data: toAudioDTO(row) }, 201);
+  return c.json({ success: true, data: toAudioDTO(row, undefined, folderChipFor(row)) }, 201);
 });
 
 apiV1.get("/audio", (c) => {
@@ -55,7 +56,7 @@ apiV1.get("/audio", (c) => {
 
 apiV1.get("/audio/:id", (c) => {
   const audio = audioFromParam(c);
-  return c.json({ success: true, data: { ...toAudioDTO(audio), stats: getAudioStats(audio.id) } });
+  return c.json({ success: true, data: { ...toAudioDTO(audio, undefined, folderChipFor(audio)), stats: getAudioStats(audio.id) } });
 });
 
 apiV1.patch("/audio/:id", async (c) => {
@@ -64,7 +65,7 @@ apiV1.patch("/audio/:id", async (c) => {
     throw badRequest("Body must be valid JSON.");
   });
   const patch = parseOrThrow(patchAudioSchema, raw);
-  return c.json({ success: true, data: toAudioDTO(updateAudio(audio.id, audio.userId, patch)) });
+  return c.json({ success: true, data: toAudioDTO(updateAudio(audio.id, audio.userId, toAudioPatchInput(patch)), undefined, folderChipFor(getOwnedAudio(audio.id, audio.userId))) });
 });
 
 apiV1.delete("/audio/:id", async (c) => {

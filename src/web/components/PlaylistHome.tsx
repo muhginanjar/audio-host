@@ -169,13 +169,6 @@ export function PlaylistHome() {
                       </a>
                     </span>
                   </div>
-                  {active && (
-                    <div className="border-t border-indigo-100 bg-indigo-50/40 px-4 py-2 sm:px-14">
-                      <audio controls autoPlay preload="metadata" className="h-9 w-full" onEnded={() => setPlayingId(null)}>
-                        <source src={a.url} type={a.mime_type} />
-                      </audio>
-                    </div>
-                  )}
                 </li>
               );
             })}
